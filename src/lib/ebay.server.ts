@@ -29,20 +29,47 @@ const EMPTY: StoreData = {
   isEmpty: true,
 };
 
+const SNAPSHOT = path.join(process.cwd(), 'src', 'content', 'store-snapshot.json');
+
+/**
+ * The committed stand-in for the CSVs, written by `npm run build:snapshot`.
+ *
+ * Deployments never have `/data` — the raw exports are gitignored because of the
+ * buyer PII in them. The snapshot holds the same parse output, which carries no
+ * personal data (see the script's header), so the hosted dashboard shows the
+ * real figures rather than a placeholder. Still never fabricated: if the file is
+ * absent or malformed, this returns empty and the placeholder comes back.
+ */
+function loadSnapshot(): StoreData {
+  try {
+    const data = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8')) as StoreData;
+    return data.orders?.length ? data : EMPTY;
+  } catch {
+    return EMPTY;
+  }
+}
+
 /**
  * Reads every CSV in `/data` and routes each by CONTENT, not filename — so
- * renamed or re-dated exports keep working. Returns empty shapes (never throws)
- * when the folder is missing, so the site still builds and the dashboard shows
- * its clearly-labelled placeholder state instead of fabricated numbers.
+ * renamed or re-dated exports keep working. Never throws.
+ *
+ * Live CSVs win when present, so dropping a fresh export in and rebuilding shows
+ * the new numbers immediately. Otherwise it falls back to the committed
+ * snapshot, which is what happens on Vercel. Only when both are missing does the
+ * dashboard show its clearly-labelled placeholder instead of fabricated numbers.
+ *
+ * `allowSnapshot: false` forces the CSV-only path — used by the snapshot builder
+ * itself, which must not be able to regenerate its output from its own output.
  */
-export function loadStoreData(): StoreData {
+export function loadStoreData(opts: { allowSnapshot?: boolean } = {}): StoreData {
+  const { allowSnapshot = true } = opts;
   const dir = path.join(process.cwd(), 'data');
 
   let files: string[];
   try {
     files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith('.csv'));
   } catch {
-    return EMPTY;
+    return allowSnapshot ? loadSnapshot() : EMPTY;
   }
 
   let lines: LineFact[] = [];
@@ -86,12 +113,15 @@ export function loadStoreData(): StoreData {
     return true;
   });
 
+  // A `/data` folder holding no usable exports is the same situation as none.
+  if (orders.length === 0) return allowSnapshot ? loadSnapshot() : EMPTY;
+
   return {
     lines,
     orders,
     fees: parseListings(listingTexts),
     ranks,
     sources,
-    isEmpty: orders.length === 0,
+    isEmpty: false,
   };
 }
