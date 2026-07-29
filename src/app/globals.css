@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --accent: #c98500;
+    --series-2: #3987e5;
+    --card: #191713;
+    --grid: #2c2a25;
+    --axis: #3a3730;
+    --ink: #f7f4ec;
+    --ink-secondary: #c5bfb1;
+    --ink-muted: #8f887a;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Lenis drives scrolling; native smooth-scroll would fight it. It is disabled
+     under reduced motion, where this hands scrolling back to the browser. */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  body {
+    @apply bg-page text-ink font-sans antialiased;
+    font-size: 1.0625rem;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #0b0a09;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-semibold text-ink;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-5 sm:px-8 lg:px-16;
+  }
+
+  /* Hairline ring + a faint top-edge highlight. Depth without drop shadows. */
+  .surface {
+    @apply relative rounded-card border border-hairline bg-card;
+    box-shadow: inset 0 1px 0 0 rgba(255, 252, 240, 0.04);
+    /* Contains the glow pseudo-element so it sits above the card background
+       but below the card's own content. */
+    isolation: isolate;
+  }
+
+  /* Cursor-tracking accent glow. Coordinates are written by PointerGlow; the
+     gradient is pure CSS, so the per-frame cost is two custom-property writes. */
+  .surface::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--glow, 0);
+    transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    background: radial-gradient(
+      340px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(201, 133, 0, 0.13),
+      transparent 62%
+    );
+  }
+
+  .eyebrow {
+    @apply font-mono text-eyebrow uppercase text-ink-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-hairline bg-card
+           px-3.5 py-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-secondary;
+  }
+
+  .link-underline {
+    @apply relative inline-block cursor-pointer text-ink transition-colors duration-200 ease-out hover:text-accent-hover;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+  }
+
+  /* Placeholder marker for anything absent from the source PDF. */
+  .to-confirm {
+    @apply inline-flex items-center gap-1.5 rounded border border-dashed border-status-warning/50
+           bg-status-warning/[0.07] px-2 py-0.5 font-mono text-[0.75rem] text-status-warning;
+  }
+}
+
+@layer utilities {
+  .grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Reveal primitive. GSAP adds `.is-visible`. Without JS the `.no-js` escape
+     keeps content visible, so the page degrades to plain HTML, never blank. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+  .no-js .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Recharts puts its own outline on the wrapper; keep ours, drop theirs. */
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  /* Split-text words are transformed inline by GSAP; settle them here too so a
+     failed script can never leave a heading pushed out of its own mask. */
+  [data-word] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .surface::after {
+    display: none;
+  }
+}
